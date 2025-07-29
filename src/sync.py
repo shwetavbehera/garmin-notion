@@ -20,14 +20,13 @@ def init_garmin():
 
     return garmin
 
-def get_today_data(api):
+def get_yesterday_data(api):
 
-    today = '2025-07-28'
+    yesterday = datetime.date.today() - datetime.timedelta(days=1)
+    yesterday = yesterday.strftime("%Y-%m-%d")
 
-    # today = datetime.date.today().isoformat()
-
-    sleep_data = api.get_sleep_data(today)
-    steps_data = api.get_steps_data(today)
+    sleep_data = api.get_sleep_data(yesterday)
+    steps_data = api.get_steps_data(yesterday)
 
     sleep_hours = round((sleep_data.get("dailySleepDTO", {}).get("sleepTimeSeconds", 0) or 0) / 3600, 2)
     
@@ -37,7 +36,7 @@ def get_today_data(api):
 
 
     return {
-        "date": today,
+        "date": yesterday,
         "sleep_hours": sleep_hours,
         "steps": total_steps
     }
@@ -48,7 +47,7 @@ def update_notion(data):
     notion = Client(auth=os.getenv("NOTION_TOKEN"))
     db_id = os.getenv("NOTION_DATABASE_ID")
 
-    # Query for today's page
+    # Query for yesterday's page
     response = notion.databases.query(
         **{
             "database_id": db_id,
@@ -77,5 +76,5 @@ def update_notion(data):
 
 if __name__ == "__main__":
     api = init_garmin()
-    data = get_today_data(api)
+    data = get_yesterday_data(api)
     update_notion(data)
