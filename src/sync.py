@@ -22,23 +22,37 @@ def init_garmin():
 
 def get_yesterday_data(api):
 
-    yesterday = datetime.date.today() - datetime.timedelta(days=1)
-    yesterday = yesterday.strftime("%Y-%m-%d")
+    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
 
     sleep_data = api.get_sleep_data(yesterday)
     steps_data = api.get_steps_data(yesterday)
 
-    sleep_hours = round((sleep_data.get("dailySleepDTO", {}).get("sleepTimeSeconds", 0) or 0) / 3600, 2)
+    try:
+        sleep_hours = round(sleep_data.get("dailySleepDTO", {}).get("sleepTimeSeconds", 0) / 3600, 2)
+    except:
+        sleep_hours = 0
     
-    total_steps = 0
-    for elem in steps_data:
-        total_steps += elem.get("steps", 0)
+    try:
+        total_steps = sum(elem.get("steps", 0) for elem in steps_data)
+    except:
+        total_steps = 0
 
+    activities = api.get_activities_by_date(yesterday, yesterday)
+
+    gym = False
+    run = False
+    for activity in activities:
+        if activity.get("activityType").get("typeKey") == "strength_training":
+            gym = True
+        if activity.get("activityType").get("typeKey") == "running":
+            run = True
 
     return {
         "date": yesterday,
         "sleep_hours": sleep_hours,
-        "steps": total_steps
+        "steps": total_steps,
+        "gym": gym,
+        "run": run
     }
 
 def update_notion(data):
@@ -68,7 +82,9 @@ def update_notion(data):
         page_id=page_id,
         properties={
             "😴 Sleep (hrs)": {"number": data["sleep_hours"]},
-            "🚶🏾‍➡️ Steps": {"number": data["steps"]}
+            "🚶🏾‍➡️ Steps": {"number": data["steps"]},
+            "💪🏾 Gym": {"checkbox": data["gym"]},
+            "👟 Run": {"checkbox": data["run"]},
             
         }
     )
